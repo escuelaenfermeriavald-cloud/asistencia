@@ -30,6 +30,9 @@ li.in{border-color:var(--ok)}.who{flex:1 1 180px;min-width:0}.who strong{display
 .pill{font-size:.8rem;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--ok-soft);color:var(--ok);white-space:nowrap}
 .empty{color:var(--muted);justify-content:center;text-align:center}
 .foot{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:6px}
+.cell{aspect-ratio:1;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line);color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+.cell.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:700}
 </style>
 </head>
 <body>
@@ -45,7 +48,7 @@ li.in{border-color:var(--ok)}.who{flex:1 1 180px;min-width:0}.who strong{display
   </form>
 
   <div id="main" hidden style="display:flex;flex-direction:column;gap:14px">
-    <section class="card"><div class="row"><span class="num" id="n">0</span><span class="sub">de <span id="tot">0</span> inscritos ya ingresaron</span></div><div class="bar"><i id="bar"></i></div></section>
+    <section class="card"><div class="row"><span class="num" id="n">0</span><span class="sub">de <span id="tot">0</span> inscritos ya ingresaron</span></div><div class="bar"><i id="bar"></i></div><button type="button" id="vercupos">Ver cupos</button><div class="grid" id="cupos" hidden></div></section>
     <video id="video" playsinline muted hidden></video>
     <button class="go big" id="cam" type="button">Activar cámara para escanear</button>
     <div class="res" id="res" role="status" aria-live="assertive"><b>Listo para escanear</b><span>Activa la cámara y apunta al QR del participante.</span></div>
@@ -10186,6 +10189,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       li.append(b);ul.append(li);
     });
     if(!ul.children.length){var e=document.createElement('li');e.className='empty';e.textContent=S.filas.length?'Nadie coincide con la búsqueda.':'La planilla no tiene inscritos todavía.';ul.append(e)}
+    var g=$('cupos');if(!g.hidden){g.textContent='';for(var i=1;i<=S.filas.length;i++){var c=document.createElement('div');c.className='cell'+(i<=n?' on':'');c.textContent=i;g.append(c)}}
     $('n').textContent=n;$('tot').textContent=S.filas.length;$('bar').style.width=(S.filas.length?Math.round(n/S.filas.length*100):0)+'%';
   }
   async function refresh(){try{var d=await call({a:'lista'});if(d.ok){S.filas=d.filas.sort(function(a,b){return a.n.localeCompare(b.n,'es')});render()}return d}catch(e){return {ok:false,error:'red'}}}
@@ -10223,6 +10227,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     }catch(e){S.stream=null;show('bad','No se pudo usar la cámara','Permite el uso de la cámara en el navegador, o busca a la persona por nombre o RUT.')}
   };
   $('q').addEventListener('input',render);
+  $('vercupos').onclick=function(){var g=$('cupos');g.hidden=!g.hidden;this.textContent=g.hidden?'Ver cupos':'Ocultar cupos';render()};
   $('link').onclick=async function(){var u=location.origin+location.pathname+'#api='+encodeURIComponent(S.api);
     try{await navigator.clipboard.writeText(u);show('','Enlace copiado','Envíalo a tus ayudantes junto con la clave.')}catch(e){show('','Enlace para ayudantes',u)}};
   $('salir').onclick=function(){put('k','');location.reload()};

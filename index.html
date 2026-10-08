@@ -10191,7 +10191,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   async function refresh(){try{var d=await call({a:'lista'});if(d.ok){S.filas=d.filas.sort(function(a,b){return a.n.localeCompare(b.n,'es')});render()}return d}catch(e){return {ok:false,error:'red'}}}
   async function entra(raw){
     var c=String(raw||'').trim().toUpperCase(); if(S.busy)return; S.busy=true; show('','Verificando…',c);
-    try{var d=await call({a:'entra',c:c,por:S.por});
+    try{var d=await call({a:'entra',cod:c,por:S.por});
       if(!d.ok)show('bad','No se pudo registrar',d.error==='clave'?'La clave ya no es válida. Sal y vuelve a entrar.':'Avisa a la organizadora.');
       else if(d.estado==='entra'){show('ok','Puede entrar',d.nombre+' · ingreso registrado a las '+d.hora+'.');var f=S.filas.find(function(x){return x.c===c});if(f)f.h=d.hora;render()}
       else if(d.estado==='repetido')show('warn','Ya ingresó',d.nombre+' fue registrado a las '+d.hora+'. Este QR ya se usó.');
@@ -10202,7 +10202,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   async function undo(c){
     if(S.armed!==c){S.armed=c;render();setTimeout(function(){if(S.armed===c){S.armed=null;render()}},4000);return}
     S.armed=null;
-    try{var d=await call({a:'quita',c:c});if(d.ok){var f=S.filas.find(function(x){return x.c===c});if(f)f.h='';render();show('','Ingreso quitado',(d.nombre||'')+' quedó sin registro de asistencia.')}}
+    try{var d=await call({a:'quita',cod:c});if(d.ok){var f=S.filas.find(function(x){return x.c===c});if(f)f.h='';render();show('','Ingreso quitado',(d.nombre||'')+' quedó sin registro de asistencia.')}}
     catch(e){show('bad','Sin conexión','No se pudo quitar el ingreso.')}
   }
   var cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});

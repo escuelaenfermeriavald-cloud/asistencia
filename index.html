@@ -63,12 +63,13 @@ a.btn{display:block;text-align:center;font-weight:600;border-radius:10px;padding
         <button type="button" class="go" id="encsave">Guardar enlace</button>
       </div>
       <div id="encshow" hidden style="display:flex;flex-direction:column;gap:10px">
-        <p class="sub">Muestra este QR en pantalla o compártelo.</p>
-        <div id="encqr" style="background:#fff;border-radius:10px;padding:10px;max-width:320px;width:100%;align-self:center"></div>
-        <a class="btn go" id="encwa" target="_blank" rel="noopener">Compartir por WhatsApp</a>
-        <button type="button" id="enccopy">Copiar enlace</button>
-        <button type="button" id="encchange">Cambiar enlace</button>
-        <p class="sub" id="enctxt" style="overflow-wrap:anywhere"></p>
+        <p class="sub" id="encresumen"></p>
+        <p class="sub" id="encaviso" hidden>Falta actualizar la planilla para enviar la encuesta. Avisa a la organizadora.</p>
+        <button type="button" class="go" id="encmail">Enviar por correo a todos los asistentes</button>
+        <strong style="margin-top:6px">Por WhatsApp, uno por uno</strong>
+        <ul id="enclist"></ul>
+        <details><summary class="sub">QR para proyectar en el auditorio</summary><div id="encqr" style="background:#fff;border-radius:10px;padding:10px;max-width:320px;margin-top:8px"></div></details>
+        <button type="button" id="encchange">Cambiar enlace de la encuesta</button>
       </div>
     </section>
     <div class="foot"><button type="button" id="encbtn">Encuesta de satisfacción</button><button type="button" id="link">Copiar enlace para ayudantes</button><button type="button" id="salir">Salir</button></div>
@@ -12506,6 +12507,7 @@ var qrcode = function() {
       li.append(b);ul.append(li);
     });
     if(!ul.children.length){var e=document.createElement('li');e.className='empty';e.textContent=S.filas.length?'Nadie coincide con la búsqueda.':'La planilla no tiene inscritos todavía.';ul.append(e)}
+    if(!$('encbox').hidden)encList();
     var g=$('cupos'),CAP=Math.max(150,S.filas.length);$('cuposTxt').hidden=g.hidden;$('cuposTxt').textContent=n+' de '+CAP+' cupos ocupados';if(!g.hidden){g.textContent='';for(var i=1;i<=CAP;i++){var c=document.createElement('div');c.className='cell'+(i<=n?' on':'');c.textContent=i;g.append(c)}}
     $('n').textContent=n;$('tot').textContent=S.filas.length;$('bar').style.width=(S.filas.length?Math.round(n/S.filas.length*100):0)+'%';
   }
@@ -12547,14 +12549,37 @@ var qrcode = function() {
   $('vercupos').onclick=function(){var g=$('cupos');g.hidden=!g.hidden;this.textContent=g.hidden?'Ver cupos':'Ocultar cupos';render()};
   $('link').onclick=async function(){var u=location.origin+location.pathname+'#api='+encodeURIComponent(S.api);
     try{await navigator.clipboard.writeText(u);show('','Enlace copiado','Envíalo a tus ayudantes junto con la clave.')}catch(e){show('','Enlace para ayudantes',u)}};
-  var MSG='Gracias por participar en la III Jornada de Investigación en Enfermería y Salud UST. Te invitamos a responder la encuesta de satisfacción: ';
+  var MSG='Hola, muchas gracias por participar en la III Jornada de Investigación en Enfermería y Salud UST. Te invitamos a responder la encuesta de satisfacción: ';
+  var encArmed=false;
+  function encList(){
+    var u=get('enc'),ul=$('enclist');if(!u)return;ul.textContent='';
+    var nuevo=S.filas.length&&S.filas[0].t!==undefined;$('encaviso').hidden=nuevo;$('encmail').disabled=!nuevo;
+    var asis=S.filas.filter(function(f){return f.h}),env=asis.filter(function(f){return f.m}).length;
+    $('encresumen').textContent=asis.length+' asistentes · '+env+' ya recibieron la encuesta';
+    if(!nuevo)return;
+    asis.forEach(function(f){
+      var li=document.createElement('li');var w=document.createElement('div');w.className='who';var st=document.createElement('strong');st.textContent=f.n||'(sin nombre)';var sm=document.createElement('small');sm.textContent=f.m?('Enviada · '+f.m):(f.t?'+'+f.t:'Sin teléfono, va por correo');w.append(st,sm);li.append(w);
+      if(f.m){var p=document.createElement('span');p.className='pill';p.textContent='Enviada';li.append(p)}
+      else if(f.t){var a=document.createElement('a');a.className='btn';a.textContent='WhatsApp';a.target='_blank';a.rel='noopener';a.href='https://wa.me/'+f.t+'?text='+encodeURIComponent(MSG+u);
+        a.onclick=function(){f.m='WhatsApp';call({a:'encwa',cod:f.c}).catch(function(){});setTimeout(encList,300)};li.append(a)}
+      ul.append(li)});
+    if(!asis.length){var e=document.createElement('li');e.className='empty';e.textContent='Todavía no hay asistentes registrados.';ul.append(e)}
+  }
   function encRender(){var u=get('enc');$('encset').hidden=!!u;$('encshow').hidden=!u;if(!u)return;
-    var q=qrcode(0,'M');q.addData(u);q.make();$('encqr').innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true});
-    $('encwa').href='https://wa.me/?text='+encodeURIComponent(MSG+u);$('enctxt').textContent=u}
+    try{var q=qrcode(0,'M');q.addData(u);q.make();$('encqr').innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true})}catch(e){}
+    encList()}
   $('encbtn').onclick=function(){var b=$('encbox');b.hidden=!b.hidden;if(!b.hidden){encRender();b.scrollIntoView({behavior:'smooth'})}};
   $('encsave').onclick=function(){var u=$('encurl').value.trim();if(!/^https?:\/\/\S+$/.test(u)){show('bad','Enlace no válido','Pega el enlace completo de la encuesta, que empieza con https://');return}put('enc',u);encRender()};
   $('encchange').onclick=function(){$('encurl').value=get('enc');put('enc','');encRender()};
-  $('enccopy').onclick=async function(){try{await navigator.clipboard.writeText(MSG+get('enc'));show('','Enlace copiado','Pégalo en WhatsApp, correo o donde quieras.')}catch(e){show('','Enlace de la encuesta',get('enc'))}};
+  $('encmail').onclick=async function(){
+    var b=this;if(!encArmed){encArmed=true;b.textContent='¿Confirmar envío por correo?';setTimeout(function(){encArmed=false;b.textContent='Enviar por correo a todos los asistentes'},5000);return}
+    encArmed=false;b.disabled=true;b.textContent='Enviando…';show('','Enviando encuestas…','Puede tardar un par de minutos. No cierres la aplicación.');
+    try{var d=await call({a:'encuesta',url:get('enc')});
+      if(d.ok){show('ok','Encuestas enviadas',d.enviados+' correos enviados'+(d.pendientes?'. Quedaron '+d.pendientes+' pendientes por el límite diario de Gmail: envíalos por WhatsApp o vuelve a intentarlo más tarde.':'.'));await refresh()}
+      else show('bad','No se pudo enviar',d.error==='url'?'El enlace de la encuesta no es válido.':'Revisa que la planilla esté actualizada.');
+    }catch(e){show('bad','Sin respuesta','Revisa en la planilla (columna M) cuántas salieron antes de volver a intentar.')}
+    b.disabled=false;b.textContent='Enviar por correo a todos los asistentes';
+  };
   $('salir').onclick=function(){put('k','');location.reload()};
   async function start(){
     $('lmsg').textContent='Conectando…';

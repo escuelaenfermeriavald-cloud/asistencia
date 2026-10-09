@@ -48,7 +48,7 @@ li.in{border-color:var(--ok)}.who{flex:1 1 180px;min-width:0}.who strong{display
   </form>
 
   <div id="main" hidden style="display:flex;flex-direction:column;gap:14px">
-    <section class="card"><div class="row"><span class="num" id="n">0</span><span class="sub">de <span id="tot">0</span> inscritos ya ingresaron</span></div><div class="bar"><i id="bar"></i></div><button type="button" id="vercupos">Ver cupos</button><div class="grid" id="cupos" hidden></div></section>
+    <section class="card"><div class="row"><span class="num" id="n">0</span><span class="sub">de <span id="tot">0</span> inscritos ya ingresaron</span></div><div class="bar"><i id="bar"></i></div><button type="button" id="vercupos">Ver cupos</button><p class="sub" id="cuposTxt" hidden></p><div class="grid" id="cupos" hidden></div></section>
     <video id="video" playsinline muted hidden></video>
     <button class="go big" id="cam" type="button">Activar cámara para escanear</button>
     <div class="res" id="res" role="status" aria-live="assertive"><b>Listo para escanear</b><span>Activa la cámara y apunta al QR del participante.</span></div>
@@ -10189,7 +10189,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       li.append(b);ul.append(li);
     });
     if(!ul.children.length){var e=document.createElement('li');e.className='empty';e.textContent=S.filas.length?'Nadie coincide con la búsqueda.':'La planilla no tiene inscritos todavía.';ul.append(e)}
-    var g=$('cupos');if(!g.hidden){g.textContent='';for(var i=1;i<=S.filas.length;i++){var c=document.createElement('div');c.className='cell'+(i<=n?' on':'');c.textContent=i;g.append(c)}}
+    var g=$('cupos'),CAP=Math.max(150,S.filas.length);$('cuposTxt').hidden=g.hidden;$('cuposTxt').textContent=n+' de '+CAP+' cupos ocupados';if(!g.hidden){g.textContent='';for(var i=1;i<=CAP;i++){var c=document.createElement('div');c.className='cell'+(i<=n?' on':'');c.textContent=i;g.append(c)}}
     $('n').textContent=n;$('tot').textContent=S.filas.length;$('bar').style.width=(S.filas.length?Math.round(n/S.filas.length*100):0)+'%';
   }
   async function refresh(){try{var d=await call({a:'lista'});if(d.ok){S.filas=d.filas.sort(function(a,b){return a.n.localeCompare(b.n,'es')});render()}return d}catch(e){return {ok:false,error:'red'}}}

@@ -55,16 +55,6 @@ a.btn{display:block;text-align:center;font-weight:600;border-radius:10px;padding
     <button class="go big" id="cam" type="button">Activar cámara para escanear</button>
     <div class="res" id="res" role="status" aria-live="assertive"><b>Listo para escanear</b><span>Activa la cámara y apunta al QR del participante.</span></div>
     <input type="search" id="q" placeholder="Buscar por nombre, RUT o código" autocomplete="off">
-    <button type="button" id="nvbtn">+ Inscribir persona nueva</button>
-    <form class="card" id="nvbox" hidden>
-      <strong>Inscribir persona que no está en la lista</strong>
-      <label>Nombre completo<input id="nvn" type="text" maxlength="80" required></label>
-      <label>RUT<input id="nvr" type="text" maxlength="15" placeholder="12345678-9"></label>
-      <label>Correo (opcional)<input id="nvm" type="email" maxlength="80"></label>
-      <label>Teléfono (opcional)<input id="nvt" type="tel" maxlength="15" placeholder="912345678"></label>
-      <label style="flex-direction:row;align-items:center;gap:8px;font-weight:400"><input id="nvin" type="checkbox" checked style="width:auto"> Marcar su ingreso ahora</label>
-      <div class="foot"><button type="submit" class="go" id="nvok">Inscribir</button><button type="button" id="nvno">Cancelar</button></div>
-    </form>
     <ul id="list"></ul>
     <section class="card" id="encbox" hidden>
       <strong>Encuesta de satisfacción</strong>
@@ -12516,8 +12506,7 @@ var qrcode = function() {
       else{b.className='go';b.textContent='Marcar ingreso';b.onclick=function(){entra(f.c)}}
       li.append(b);ul.append(li);
     });
-    if(!ul.children.length){var e=document.createElement('li');e.className='empty';e.textContent=S.filas.length?'Nadie coincide con la búsqueda.':'La planilla no tiene inscritos todavía.';
-      if(q){var nb=document.createElement('button');nb.type='button';nb.className='go';nb.textContent='Inscribir a esta persona';nb.onclick=function(){nvOpen($('q').value)};e.append(document.createElement('br'),nb)}ul.append(e)}
+    if(!ul.children.length){var e=document.createElement('li');e.className='empty';e.textContent=S.filas.length?'Nadie coincide con la búsqueda.':'La planilla no tiene inscritos todavía.';ul.append(e)}
     if(!$('encbox').hidden)encList();
     var g=$('cupos'),CAP=Math.max(150,S.filas.length);$('cuposTxt').hidden=g.hidden;$('cuposTxt').textContent=n+' de '+CAP+' cupos ocupados';if(!g.hidden){g.textContent='';for(var i=1;i<=CAP;i++){var c=document.createElement('div');c.className='cell'+(i<=n?' on':'');c.textContent=i;g.append(c)}}
     $('n').textContent=n;$('tot').textContent=S.filas.length;$('bar').style.width=(S.filas.length?Math.round(n/S.filas.length*100):0)+'%';
@@ -12557,27 +12546,14 @@ var qrcode = function() {
     }catch(e){S.stream=null;show('bad','No se pudo usar la cámara','Permite el uso de la cámara en el navegador, o busca a la persona por nombre o RUT.')}
   };
   $('q').addEventListener('input',render);
-  function nvOpen(txt){var b=$('nvbox');b.hidden=false;$('nvbtn').hidden=true;txt=String(txt||'').trim();
-    if(/^[0-9.\-kK]{7,}$/.test(txt)){$('nvr').value=txt;$('nvn').value=''}else{$('nvn').value=txt;$('nvr').value=''}
-    $('nvm').value='';$('nvt').value='';$('nvin').checked=true;b.scrollIntoView({behavior:'smooth',block:'center'});$('nvn').focus()}
-  function nvClose(){$('nvbox').hidden=true;$('nvbtn').hidden=false}
-  $('nvbtn').onclick=function(){nvOpen($('q').value)};
-  $('nvno').onclick=nvClose;
-  $('nvbox').addEventListener('submit',async function(ev){ev.preventDefault();
-    var n=$('nvn').value.trim();if(!n)return;var ok=$('nvok');ok.disabled=true;ok.textContent='Inscribiendo…';
-    try{var d=await call({a:'nuevo',n:n,r:$('nvr').value.trim(),m:$('nvm').value.trim(),t:$('nvt').value.trim(),in:$('nvin').checked?'1':'0',por:S.por});
-      if(!d.ok)show('bad','No se pudo inscribir',d.error==='accion'?'Falta actualizar la planilla para inscribir en la puerta. Avisa a la organizadora.':d.error==='clave'?'La clave ya no es válida. Sal y vuelve a entrar.':'Revisa el nombre e intenta de nuevo.');
-      else if(d.estado==='existe'){show('warn','Ya estaba inscrito',d.nombre+' ya está en la lista con el código '+d.cod+'. Búscalo y marca su ingreso.');nvClose();$('q').value=d.cod;await refresh()}
-      else{show('ok',d.hora?'Inscrito, puede entrar':'Inscrito',d.nombre+' · código '+d.cod+(d.hora?' · ingreso registrado a las '+d.hora+'.':'.'));nvClose();$('q').value='';await refresh()}
-    }catch(e){show('bad','Sin conexión','No se guardó. Revisa el internet e intenta de nuevo.')}
-    ok.disabled=false;ok.textContent='Inscribir'});
   $('vercupos').onclick=function(){var g=$('cupos');g.hidden=!g.hidden;this.textContent=g.hidden?'Ver cupos':'Ocultar cupos';render()};
   $('link').onclick=async function(){var u=location.origin+location.pathname+'#api='+encodeURIComponent(S.api);
     try{await navigator.clipboard.writeText(u);show('','Enlace copiado','Envíalo a tus ayudantes junto con la clave.')}catch(e){show('','Enlace para ayudantes',u)}};
-  var MSG='Hola, muchas gracias por participar en la III Jornada de Investigación en Enfermería y Salud UST. Te invitamos a responder la encuesta de satisfacción: ';
+  var MSG='Hola, muchas gracias por participar. Te invitamos a responder la encuesta de satisfacción: ';
+  var EK=function(){return 'enc:'+S.api};
   var encArmed=false;
   function encList(){
-    var u=get('enc'),ul=$('enclist');if(!u)return;ul.textContent='';
+    var u=get(EK()),ul=$('enclist');if(!u)return;ul.textContent='';
     var nuevo=S.filas.length&&S.filas[0].t!==undefined;$('encaviso').hidden=nuevo;$('encmail').disabled=!nuevo;
     var asis=S.filas.filter(function(f){return f.h}),env=asis.filter(function(f){return f.m}).length;
     $('encresumen').textContent=asis.length+' asistentes · '+env+' ya recibieron la encuesta';
@@ -12590,16 +12566,16 @@ var qrcode = function() {
       ul.append(li)});
     if(!asis.length){var e=document.createElement('li');e.className='empty';e.textContent='Todavía no hay asistentes registrados.';ul.append(e)}
   }
-  function encRender(){var u=get('enc');$('encset').hidden=!!u;$('encshow').hidden=!u;if(!u)return;
+  function encRender(){var u=get(EK());$('encset').hidden=!!u;$('encshow').hidden=!u;if(!u)return;
     try{var q=qrcode(0,'M');q.addData(u);q.make();$('encqr').innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true})}catch(e){}
     encList()}
   $('encbtn').onclick=function(){var b=$('encbox');b.hidden=!b.hidden;if(!b.hidden){encRender();b.scrollIntoView({behavior:'smooth'})}};
-  $('encsave').onclick=function(){var u=$('encurl').value.trim();if(!/^https?:\/\/\S+$/.test(u)){show('bad','Enlace no válido','Pega el enlace completo de la encuesta, que empieza con https://');return}put('enc',u);encRender()};
-  $('encchange').onclick=function(){$('encurl').value=get('enc');put('enc','');encRender()};
+  $('encsave').onclick=function(){var u=$('encurl').value.trim();if(!/^https?:\/\/\S+$/.test(u)){show('bad','Enlace no válido','Pega el enlace completo de la encuesta, que empieza con https://');return}put(EK(),u);encRender()};
+  $('encchange').onclick=function(){$('encurl').value=get(EK());put(EK(),'');encRender()};
   $('encmail').onclick=async function(){
     var b=this;if(!encArmed){encArmed=true;b.textContent='¿Confirmar envío por correo?';setTimeout(function(){encArmed=false;b.textContent='Enviar por correo a todos los asistentes'},5000);return}
     encArmed=false;b.disabled=true;b.textContent='Enviando…';show('','Enviando encuestas…','Puede tardar un par de minutos. No cierres la aplicación.');
-    try{var d=await call({a:'encuesta',url:get('enc')});
+    try{var d=await call({a:'encuesta',url:get(EK())});
       if(d.ok){show('ok','Encuestas enviadas',d.enviados+' correos enviados'+(d.pendientes?'. Quedaron '+d.pendientes+' pendientes por el límite diario de Gmail: envíalos por WhatsApp o vuelve a intentarlo más tarde.':'.'));await refresh()}
       else show('bad','No se pudo enviar',d.error==='url'?'El enlace de la encuesta no es válido.':'Revisa que la planilla esté actualizada.');
     }catch(e){show('bad','Sin respuesta','Revisa en la planilla (columna M) cuántas salieron antes de volver a intentar.')}

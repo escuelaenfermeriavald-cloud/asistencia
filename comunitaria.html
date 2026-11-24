@@ -2504,24 +2504,27 @@ var qrcode = function() {
   function feed(e){$('feedEmpty').classList.add('hidden');var li=el('li');li.append(el('span','dot '+tipo(e.res)));
     var t=el('div');t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||e.m)+(e.det?' — '+e.det:'')));li.append(t);
     var f=$('feed');f.insertBefore(li,f.firstChild);while(f.children.length>8)f.removeChild(f.lastChild)}
-  function siguiente(){if(S.ovT||!S.cola.length)return;var e=S.cola.shift(),k=tipo(e.res),ov=$('ov');
+  function verQr(){clearTimeout(S.inT);$('tQr').classList.add('on');$('tList').classList.remove('on');$('pQr').classList.remove('hidden');$('pList').classList.add('hidden');$('q').value=''}
+  function siguiente(){if(S.ovT||!S.cola.length)return;var e=S.cola.shift(),k=tipo(e.res),ov=$('ov');verQr();
     ov.className='show '+k;$('ovIc').textContent=k==='g'?'✓':k==='r'?'✕':'!';
     $('ovT').textContent=k==='g'?'Puede ingresar':k==='r'?'NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'Ya había ingresado':'Correo no inscrito';
     $('ovN').textContent=e.n||e.m;$('ovD').textContent=k==='g'?(e.det||''):e.det||'';sound(k);
-    S.ovT=setTimeout(cerrar,k==='r'?9000:k==='g'?3500:6000)}
+    S.ovT=setTimeout(cerrar,k==='r'?6000:k==='g'?3000:5000)}
   function cerrar(){clearTimeout(S.ovT);S.ovT=null;$('ov').className='';setTimeout(siguiente,250)}
   $('ov').onclick=cerrar;
 
   // lista y buscador
-  $('tQr').onclick=function(){$('tQr').classList.add('on');$('tList').classList.remove('on');$('pQr').classList.remove('hidden');$('pList').classList.add('hidden')};
-  $('tList').onclick=function(){$('tList').classList.add('on');$('tQr').classList.remove('on');$('pList').classList.remove('hidden');$('pQr').classList.add('hidden');render()};
+  $('tQr').onclick=verQr;
+  function inactivo(){clearTimeout(S.inT);S.inT=setTimeout(verQr,45000)}
+  ['input','click','touchstart','scroll'].forEach(function(t){$('pList').addEventListener(t,inactivo,{passive:true})});
+  $('tList').onclick=function(){$('tList').classList.add('on');$('tQr').classList.remove('on');$('pList').classList.remove('hidden');$('pQr').classList.add('hidden');render();inactivo()};
   $('q').oninput=render;
   function match(f,q){return !q||low(f.n+' '+f.m+' '+f.car).indexOf(q)>=0}
   function fila(f,mia){var li=el('li'),w=el('div','who');w.append(el('b','',f.n),el('small','',f.car+' · '+f.m));li.append(w);
     if(!mia){li.append(el('span','tag no',f.js.map(function(x){return S.J[x]?S.J[x].n:x}).join(', ')));return li}
     if(f.h){li.append(el('span','tag in','✓ '+f.h));var u=el('button','sec','Quitar');u.onclick=function(){if(confirm('¿Quitar el ingreso de '+f.n+'?')){u.disabled=true;call({a:'quita',f:f.f}).then(refrescar)}};li.append(u)}
     else{var b=el('button','','Registrar');b.onclick=function(){if(!confirm('¿Registrar el ingreso de '+f.n+'?\nRevisa su identidad antes de confirmar.'))return;b.disabled=true;
-      call({a:'entra',f:f.f,por:S.por}).then(function(d){if(d.res==='otra')alert('No corresponde: '+d.detalle);refrescar()}).catch(function(){b.disabled=false;alert('Sin conexión')})};li.append(b)}
+      call({a:'entra',f:f.f,por:S.por}).then(function(d){if(d.res==='otra')alert('No corresponde: '+d.detalle);refrescar();verQr()}).catch(function(){b.disabled=false;alert('Sin conexión')})};li.append(b)}
     return li}
   function render(){var q=low($('q').value.trim()),ul=$('list'),ot=$('otras');ul.innerHTML='';ot.innerHTML='';
     var m=mias().filter(function(f){return match(f,q)}).sort(function(a,b){return (a.h?1:0)-(b.h?1:0)||a.n.localeCompare(b.n)});

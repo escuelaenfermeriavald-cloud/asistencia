@@ -58,6 +58,28 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
 .links a{color:var(--pri);font-weight:700;overflow-wrap:anywhere}
 .foot{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:14px;margin-top:16px}
 .hidden{display:none!important}
+.tabs button{padding:11px 6px;font-size:14px}
+.al{border-radius:14px;padding:14px 16px;color:#fff;margin:10px 0 4px;position:relative}
+.al.g{background:var(--ok)}.al.y{background:var(--warn)}.al.r{background:var(--bad);animation:fl .6s 6 alternate}
+@keyframes fl{from{background:var(--bad)}to{background:#7f0000}}
+
+.al .t{font-size:22px;font-weight:800;margin:0 34px 4px 0;line-height:1.2}
+.al .n{font-size:20px;font-weight:700;margin:2px 0}
+.al .d{font-size:16px;margin:2px 0}
+.al .c{font-size:13px;opacity:.85;margin-top:6px}
+.al .x{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.2);color:#fff;border-radius:50%;width:36px;height:36px;padding:0;font-size:18px}
+.al{overflow-wrap:anywhere}
+.al .t{font-size:19px}.al .n{font-size:18px}.al .d{font-size:15px}
+.al+.al{padding:8px 44px 8px 12px;margin:6px 0 0;animation:none}
+.al+.al .t{font-size:14px;display:inline;margin:0}.al+.al .n{font-size:14px;display:inline;margin-left:6px}
+.al+.al .d,.al+.al .c{display:none}.al+.al .x{width:28px;height:28px;top:4px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.stats div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.stats b{display:block;font-size:24px}
+.big{font-size:44px;font-weight:800;text-align:center;margin:4px 0 0}
+.pbar{height:16px;background:#e6eeee;border-radius:8px;overflow:hidden;margin:8px 0 4px}
+.pbar i{display:block;height:100%;background:var(--pri)}
+.row{margin:12px 0 0}.row .l{display:flex;justify-content:space-between;font-size:15px}
 </style>
 </head>
 <body>
@@ -98,7 +120,8 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
     <h1 id="mTit">Jornada</h1>
     <p class="sub" id="mSub"></p>
     <div class="count"><b id="cIn">0</b> de <span id="cTot">0</span> inscritos ingresaron</div>
-    <div class="tabs"><button id="tQr" class="on">QR de ingreso</button><button id="tList">Lista y buscador</button></div>
+    <div id="als"></div>
+    <div class="tabs"><button id="tQr" class="on">QR</button><button id="tList">Lista</button><button id="tInt">Intentos</button><button id="tOcu">Ocupación</button></div>
 
     <div id="pQr">
       <div class="card" id="qrwrap">
@@ -118,11 +141,21 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
       </div>
     </div>
 
+    <div id="pInt" class="hidden">
+      <div class="stats" id="iStats"></div>
+      <div class="card"><ul class="feed" id="iList"></ul><p class="sub" id="iEmpty" style="margin:0">Aún no hay intentos.</p></div>
+    </div>
+
+    <div id="pOcu" class="hidden">
+      <div class="card"><div class="big" id="oPct">0%</div><div class="pbar"><i id="oBar" style="width:0"></i></div>
+        <p class="sub" style="text-align:center;margin:0" id="oTxt"></p></div>
+      <div class="card"><b>Por carrera</b><div id="oCar"></div></div>
+    </div>
+
     <div class="foot"><span id="fPor"></span><button class="sec" id="bSalir">Salir</button></div>
   </section>
 </main>
 
-<div id="ov" role="alert"><div class="ic" id="ovIc"></div><h2 id="ovT"></h2><p id="ovN"></p><p id="ovD"></p><small>Toca la pantalla para cerrar</small></div>
 
 <script>//---------------------------------------------------------------------
 //
@@ -2440,8 +2473,13 @@ var qrcode = function() {
   // ---- sonido y vibración ----
   var AC=null;function unlock(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
   function beep(f,dur,at){if(!AC)return;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.value=.25;o.connect(g);g.connect(AC.destination);var t=AC.currentTime+(at||0);o.start(t);o.stop(t+dur)}
-  function sound(kind){try{if(kind==='g'){beep(880,.12);beep(1320,.15,.14)}else if(kind==='r'){for(var i=0;i<4;i++){beep(520,.22,i*.45);beep(360,.22,i*.45+.22)}}else{beep(600,.2);beep(600,.2,.3)}}catch(e){}
-    try{navigator.vibrate&&navigator.vibrate(kind==='r'?[400,150,400,150,400]:kind==='g'?[120]:[200,100,200])}catch(e){}}
+  function sirena(seg){if(!AC)return;var t=AC.currentTime,o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain();
+    o.type='sawtooth';o2.type='square';g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.08);g.gain.setValueAtTime(.35,t+seg-.2);g.gain.exponentialRampToValueAtTime(.0001,t+seg);
+    for(var k=0;k<seg/1.2;k++){var s0=t+k*1.2;o.frequency.setValueAtTime(650,s0);o.frequency.linearRampToValueAtTime(1500,s0+.6);o.frequency.linearRampToValueAtTime(650,s0+1.2);
+      o2.frequency.setValueAtTime(652,s0);o2.frequency.linearRampToValueAtTime(1504,s0+.6);o2.frequency.linearRampToValueAtTime(652,s0+1.2)}
+    var g2=AC.createGain();g2.gain.value=.25;o.connect(g);o2.connect(g2);g2.connect(g);g.connect(AC.destination);o.start(t);o2.start(t);o.stop(t+seg);o2.stop(t+seg)}
+  function sound(kind){try{if(kind==='g'){beep(880,.12);beep(1320,.15,.14)}else if(kind==='r'){sirena(5)}else{beep(600,.2);beep(600,.2,.3)}}catch(e){}
+    try{navigator.vibrate&&navigator.vibrate(kind==='r'?[600,200,600,200,600,200,600,200,600]:kind==='g'?[120]:[200,100,200])}catch(e){}}
   document.addEventListener('click',unlock,{once:false});
 
   // ---- preparación de enlaces (solo la organizadora) ----
@@ -2482,7 +2520,7 @@ var qrcode = function() {
     document.addEventListener('visibilitychange',function(){if(!document.hidden){try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){};token()}})}
   function mias(){return S.filas.filter(function(f){return f.js.indexOf(S.j)>=0})}
   function contar(){var m=mias();$('cTot').textContent=m.length;$('cIn').textContent=m.filter(function(f){return f.h}).length}
-  function refrescar(){call({a:'lista'}).then(function(d){if(d.ok){S.filas=d.filas;contar();render()}}).catch(function(){})}
+  function refrescar(){call({a:'lista'}).then(function(d){if(d.ok){S.filas=d.filas;contar();if(S.tab==='List')render();if(S.tab==='Ocu')ocupacion()}}).catch(function(){})}
 
   // QR que cambia
   function token(){clearTimeout(S.tokT);
@@ -2494,30 +2532,51 @@ var qrcode = function() {
       S.tokT=setTimeout(token,(d.quedan+0.5)*1000)
     }).catch(function(){$('qr').style.opacity=.25;$('qrMsg').textContent='Sin conexión: reintentando…';S.tokT=setTimeout(token,4000)})}
 
-  // alertas en vivo
+  // alertas en vivo (45 segundos)
+  var ESPERA=45;
   function sondear(){clearTimeout(S.evT);
     call({a:'ev',desde:S.ultimo}).then(function(d){if(d.ok){
-        if(S.ultimo>=0)d.ev.forEach(function(e){S.cola.push(e);feed(e)});
-        S.ultimo=d.ultimo;if(d.ev.length&&S.ultimo>=0)refrescar();siguiente()}
+        if(S.ultimo>=0&&d.ev.length){tab('Qr');d.ev.forEach(function(e){feed(e);aviso(e)});var ks=d.ev.map(function(e){return tipo(e.res)});sound(ks.indexOf('r')>=0?'r':ks.indexOf('y')>=0?'y':'g');refrescar();if(S.tab==='Int')intentos()}
+        S.ultimo=d.ultimo}
       S.evT=setTimeout(sondear,2500)}).catch(function(){S.evT=setTimeout(sondear,4000)})}
   function tipo(r){return /^Ingreso/.test(r)?'g':r==='Otra jornada'?'r':'y'}
   function feed(e){$('feedEmpty').classList.add('hidden');var li=el('li');li.append(el('span','dot '+tipo(e.res)));
     var t=el('div');t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||e.m)+(e.det?' — '+e.det:'')));li.append(t);
     var f=$('feed');f.insertBefore(li,f.firstChild);while(f.children.length>8)f.removeChild(f.lastChild)}
-  function verQr(){clearTimeout(S.inT);$('tQr').classList.add('on');$('tList').classList.remove('on');$('pQr').classList.remove('hidden');$('pList').classList.add('hidden');$('q').value=''}
-  function siguiente(){if(S.ovT||!S.cola.length)return;var e=S.cola.shift(),k=tipo(e.res),ov=$('ov');verQr();
-    ov.className='show '+k;$('ovIc').textContent=k==='g'?'✓':k==='r'?'✕':'!';
-    $('ovT').textContent=k==='g'?'Puede ingresar':k==='r'?'NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'Ya había ingresado':'Correo no inscrito';
-    $('ovN').textContent=e.n||e.m;$('ovD').textContent=k==='g'?(e.det||''):e.det||'';sound(k);
-    S.ovT=setTimeout(cerrar,k==='r'?6000:k==='g'?3000:5000)}
-  function cerrar(){clearTimeout(S.ovT);S.ovT=null;$('ov').className='';setTimeout(siguiente,250)}
-  $('ov').onclick=cerrar;
+  function aviso(e){var k=tipo(e.res),box=$('als'),c=el('div','al '+k),x=el('button','x','✕');x.setAttribute('aria-label','Cerrar');
+    var cc=el('div','c');c.append(x,el('div','t',(k==='g'?'✓ PUEDE INGRESAR':k==='r'?'✕ NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'! YA HABÍA INGRESADO':'? CORREO NO INSCRITO')+' · '+e.hora),
+      el('div','n',e.n||e.m),el('div','d',e.det||''),cc);
+    box.insertBefore(c,box.firstChild);while(box.children.length>3){var o=box.lastChild;clearInterval(o._i);box.removeChild(o)}
+    var q=ESPERA;function tx(){cc.textContent='Se cierra en '+q+' s · toca ✕ para cerrar'}tx();
+    function fin(){clearInterval(c._i);if(c.parentNode)c.parentNode.removeChild(c)}
+    c._i=setInterval(function(){q--;if(q<=0)return fin();tx()},1000);x.onclick=fin}
 
-  // lista y buscador
-  $('tQr').onclick=verQr;
+  // pestañas
+  var TABS=['Qr','List','Int','Ocu'];S.tab='Qr';
+  function tab(n){S.tab=n;clearTimeout(S.inT);TABS.forEach(function(x){$('t'+x).classList.toggle('on',x===n);$('p'+x).classList.toggle('hidden',x!==n)});
+    if(n!=='List')$('q').value='';if(n==='List')render();if(n==='Int')intentos();if(n==='Ocu')ocupacion();if(n!=='Qr')inactivo()}
+  function verQr(){tab('Qr')}
+  TABS.forEach(function(x){$('t'+x).onclick=function(){tab(x)}});
   function inactivo(){clearTimeout(S.inT);S.inT=setTimeout(verQr,45000)}
-  ['input','click','touchstart','scroll'].forEach(function(t){$('pList').addEventListener(t,inactivo,{passive:true})});
-  $('tList').onclick=function(){$('tList').classList.add('on');$('tQr').classList.remove('on');$('pList').classList.remove('hidden');$('pQr').classList.add('hidden');render();inactivo()};
+  ['pList','pInt','pOcu'].forEach(function(p){['input','click','touchstart','scroll'].forEach(function(t){$(p).addEventListener(t,inactivo,{passive:true})})});
+
+  // intentos
+  function intentos(){call({a:'intentos'}).then(function(d){if(!d.ok)return;var c={g:0,r:0,y:0,n:0};
+      d.ev.forEach(function(e){var k=tipo(e.res);if(e.res==='No inscrito')c.n++;else c[k]++});
+      var st=$('iStats');st.innerHTML='';[['Ingresos',c.g,'var(--ok)'],['Otra jornada',c.r,'var(--bad)'],['Ya habían ingresado',c.y,'var(--warn)'],['No inscritos',c.n,'var(--warn)']].forEach(function(x){
+        var b=el('div');var n=el('b','',x[1]);n.style.color=x[2];b.append(n,el('span','',x[0]));st.append(b)});
+      var ul=$('iList');ul.innerHTML='';$('iEmpty').classList.toggle('hidden',d.ev.length>0);
+      d.ev.slice().reverse().forEach(function(e){var li=el('li');li.append(el('span','dot '+tipo(e.res)));var t=el('div');
+        t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||'(sin nombre)')+' · '+e.m),el('div','',e.det||''));li.append(t);ul.append(li)})
+    }).catch(function(){})}
+
+  // ocupación
+  function ocupacion(){var m=mias(),inn=m.filter(function(f){return f.h}).length,p=m.length?Math.round(inn*100/m.length):0;
+    $('oPct').textContent=p+'%';$('oBar').style.width=p+'%';$('oTxt').textContent=inn+' de '+m.length+' inscritos han ingresado · faltan '+(m.length-inn);
+    var g={};m.forEach(function(f){var k=f.car||'Sin carrera';g[k]=g[k]||[0,0];g[k][1]++;if(f.h)g[k][0]++});
+    var box=$('oCar');box.innerHTML='';Object.keys(g).sort().forEach(function(k){var r=el('div','row'),l=el('div','l');l.append(el('span','',k),el('b','',g[k][0]+' / '+g[k][1]));
+      var b=el('div','pbar'),i=el('i');i.style.width=(g[k][1]?g[k][0]*100/g[k][1]:0)+'%';b.append(i);r.append(l,b);box.append(r)})}
+
   $('q').oninput=render;
   function match(f,q){return !q||low(f.n+' '+f.m+' '+f.car).indexOf(q)>=0}
   function fila(f,mia){var li=el('li'),w=el('div','who');w.append(el('b','',f.n),el('small','',f.car+' · '+f.m));li.append(w);

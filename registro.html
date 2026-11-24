@@ -66,6 +66,7 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
       if(d.res==='ya')return res('ok','✓','Ya estabas registrado/a',[d.nombre,'Tu ingreso quedó registrado a las '+d.hora+'.']);
       if(d.res==='otra'){var ls=[d.nombre,'No estás inscrito/a en esta jornada.','Te corresponde:'];
         (d.asignadas||[]).forEach(function(a){ls.push(a.n+' · '+a.d)});
+        if(d.yaVino)ls.push('Ya registraste tu asistencia en tu jornada a las '+d.yaVino+'.');
         return res('bad','✕','No corresponde esta jornada',ls)}
       if(d.res==='no')return res('warn','?','No encontramos tu correo',['"'+d.correo+'" no está en la nómina de inscritos.','Revisa que esté bien escrito.'],['Volver a intentar',function(){form(m)}]);
       if(d.res==='elegir'){box.innerHTML='';var c=el('div','card');c.append(el('label','','Este correo está asociado a más de una persona. ¿Quién eres?'));

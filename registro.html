@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registro de ingreso</title>
+<style>
+:root{--bg:#f3f6f6;--card:#fff;--ink:#1d2a2c;--mut:#5d6b6e;--pri:#0b6b74;--ok:#1e8a4c;--bad:#c62828;--warn:#b26a00;--line:#d7e0e1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:480px;margin:0 auto;padding:20px 16px 40px}
+.top{color:var(--pri);font-weight:700;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+h1{font-size:24px;margin:6px 0 2px}
+.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-weight:600;margin-bottom:6px}
+input{width:100%;font-size:18px;padding:13px 12px;border:1.5px solid var(--line);border-radius:10px}
+input:focus{outline:none;border-color:var(--pri)}
+.hint{color:var(--mut);font-size:14px;margin:6px 0 14px}
+button{width:100%;font-size:18px;font-weight:700;padding:14px;border:0;border-radius:10px;background:var(--pri);color:#fff;cursor:pointer}
+button:disabled{opacity:.6}
+button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
+.res{border-radius:14px;padding:22px 18px;color:#fff;text-align:center}
+.res .ic{font-size:54px;line-height:1}
+.res h2{margin:8px 0 6px;font-size:24px}
+.res p{margin:4px 0}
+.ok{background:var(--ok)}.bad{background:var(--bad)}.warn{background:var(--warn)}
+.opt{margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.muted{color:var(--mut);font-size:14px;text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">Jornadas de Salud Comunitaria UST</div>
+  <h1 id="tit">Registro de ingreso</h1>
+  <p class="sub" id="sub">Cargando…</p>
+  <div id="box"></div>
+  <p class="muted">Si tienes problemas, acércate a la persona encargada de la entrada.</p>
+</main>
+<script>
+(function(){
+  var h=new URLSearchParams(location.hash.slice(1));
+  var D=h.get('d')||'',J=h.get('j')||'',T=h.get('t')||'',PASE='',box=document.getElementById('box');
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+  function call(p){var u='https://script.google.com/macros/s/'+encodeURIComponent(D)+'/exec?'+new URLSearchParams(p);
+    return fetch(u,{redirect:'follow'}).then(function(r){return r.json()})}
+  function res(cls,ic,tit,lines,btn){box.innerHTML='';var r=el('div','res '+cls);r.append(el('div','ic',ic),el('h2','',tit));
+    (lines||[]).forEach(function(l){if(l)r.append(el('p','',l))});box.append(r);
+    if(btn){var b=el('button','sec',btn[0]);b.onclick=btn[1];box.append(b)}}
+  function expirado(){res('warn','⏱','El código QR expiró',['Vuelve a escanear el código QR de la entrada para registrar tu ingreso.'])}
+  function form(pre){box.innerHTML='';var c=el('div','card'),f=el('form');
+    var l=el('label','','Tu correo institucional');l.htmlFor='m';
+    var i=el('input');i.id='m';i.type='text';i.autocomplete='email';i.inputMode='email';i.autocapitalize='none';i.spellcheck=false;i.setAttribute('autocorrect','off');i.placeholder='n.apellido12@alumnos.santotomas.cl';i.required=true;i.value=pre||'';
+    var hi=el('p','hint','Puedes escribir solo la parte antes de la @ (por ejemplo: n.apellido12).');
+    var b=el('button','','Registrar mi ingreso');b.type='submit';
+    f.append(l,i,hi,b);c.append(f);box.append(c);
+    f.onsubmit=function(ev){ev.preventDefault();var m=i.value.trim();if(!m)return;b.disabled=true;b.textContent='Registrando…';enviar(m)};
+    setTimeout(function(){i.focus()},50)}
+  function enviar(m,f){var p={a:'reg',j:J,pase:PASE,m:m};if(f)p.f=f;
+    call(p).then(function(d){
+      if(!d.ok){if(d.error==='qr')return expirado();
+        if(d.error==='usado')return res('warn','✓','Este teléfono ya registró un ingreso',['Cada persona debe escanear el código QR de la entrada con su propio teléfono.']);
+        if(d.error==='correo')return res('warn','✉','Correo no válido',['Revisa cómo lo escribiste.'],['Volver a intentar',function(){form(m)}]);
+        return res('warn','!','No se pudo registrar',['Intenta nuevamente.'],['Volver a intentar',function(){form(m)}])}
+      if(d.res==='ok')return res('ok','✓','Ingreso registrado',[d.nombre,d.carrera,'Hora: '+d.hora,'Muestra esta pantalla a la persona de la entrada.']);
+      if(d.res==='ya')return res('ok','✓','Ya estabas registrado/a',[d.nombre,'Tu ingreso quedó registrado a las '+d.hora+'.']);
+      if(d.res==='otra'){var ls=[d.nombre,'No estás inscrito/a en esta jornada.','Te corresponde:'];
+        (d.asignadas||[]).forEach(function(a){ls.push(a.n+' · '+a.d)});
+        return res('bad','✕','No corresponde esta jornada',ls)}
+      if(d.res==='no')return res('warn','?','No encontramos tu correo',['"'+d.correo+'" no está en la nómina de inscritos.','Revisa que esté bien escrito.'],['Volver a intentar',function(){form(m)}]);
+      if(d.res==='elegir'){box.innerHTML='';var c=el('div','card');c.append(el('label','','Este correo está asociado a más de una persona. ¿Quién eres?'));
+        d.opciones.forEach(function(o){var b=el('button','opt',o.n);b.onclick=function(){c.querySelectorAll('button').forEach(function(x){x.disabled=true});enviar(m,o.f)};c.append(b)});box.append(c);return}
+    }).catch(function(){res('warn','!','Sin conexión',['Revisa tu internet e intenta nuevamente.'],['Volver a intentar',function(){form(m)}])})}
+  if(!D||!J||!T){document.getElementById('sub').textContent='';return res('warn','!','Enlace incompleto',['Escanea el código QR de la entrada.'])}
+  call({a:'abre',j:J,t:T}).then(function(d){
+    if(!d.ok){document.getElementById('sub').textContent='';return expirado()}
+    PASE=d.pase;document.getElementById('tit').textContent=d.jornada.n;
+    document.getElementById('sub').textContent=d.jornada.d+' · '+d.lugar;
+    history.replaceState(null,'',location.pathname+'#d='+encodeURIComponent(D)+'&j='+J);
+    form('');
+  }).catch(function(){document.getElementById('sub').textContent='';res('warn','!','Sin conexión',['Revisa tu internet y vuelve a escanear el código QR.'])});
+})();
+</script>
+</body>
+</html>

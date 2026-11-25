@@ -56,7 +56,7 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
 .links .card{display:flex;gap:12px;align-items:center}
 .links svg{width:120px;height:120px;flex:none}
 .links a{color:var(--pri);font-weight:700;overflow-wrap:anywhere}
-.foot{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:14px;margin-top:16px}
+.foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;color:var(--mut);font-size:14px;margin-top:16px}
 .hidden{display:none!important}
 .tabs{flex-wrap:wrap}.tabs button{padding:11px 6px;font-size:14px;flex:1 1 30%}
 .al{border-radius:14px;padding:14px 16px;color:#fff;margin:10px 0 4px;position:relative}
@@ -145,6 +145,7 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
     </div>
 
     <div id="pInt" class="hidden">
+      <div class="tabs" style="margin-top:0"><button id="iMios" class="on">Solo mis registros</button><button id="iTodos">Todos los supervisores</button></div>
       <div class="stats" id="iStats"></div>
       <div class="card"><ul class="feed" id="iList"></ul><p class="sub" id="iEmpty" style="margin:0">Aún no hay intentos.</p></div>
     </div>
@@ -2474,7 +2475,7 @@ var qrcode = function() {
   function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
   function show(v){['vSetup','vPick','vLogin','vMain'].forEach(function(x){$(x).classList.toggle('hidden',x!==v)})}
   function api(){return 'https://script.google.com/macros/s/'+encodeURIComponent(S.d)+'/exec'}
-  function call(p){p.k=S.k;p.j=p.j||S.j||'J1';return fetch(api()+'?'+new URLSearchParams(p),{redirect:'follow'}).then(function(r){return r.json()})}
+  function call(p){p.k=S.k;p.j=p.j||S.j||'J1';p.s=S.sid||'';return fetch(api()+'?'+new URLSearchParams(p),{redirect:'follow'}).then(function(r){return r.json()})}
   function base(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
   function svg(text,cell){var q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:cell||4,margin:2,scalable:true})}
   var low=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')};
@@ -2512,7 +2513,7 @@ var qrcode = function() {
     }).catch(function(){$('sGo').disabled=false;$('sErr').textContent='No se pudo conectar con la planilla. Revisa el enlace y que la implementación tenga acceso "Cualquier usuario".'})};
 
   // ---- elegir jornada (después de entrar) ----
-  function pick(){detener();S.j='';history.replaceState(null,'','#d='+encodeURIComponent(S.d));show('vPick');$('pPor').textContent='Supervisor: '+S.por;
+  function pick(){detener();S.j='';history.replaceState(null,'','#d='+encodeURIComponent(S.d));show('vPick');$('pPor').textContent=quien();
     var p=$('pick');p.innerHTML='';
     Object.keys(S.J).forEach(function(j){var m=S.filas.filter(function(f){return f.js.indexOf(j)>=0}),inn=m.filter(function(f){return f.h}).length;
       var b=el('button','wide');b.style.textAlign='left';b.style.padding='16px';
@@ -2530,15 +2531,22 @@ var qrcode = function() {
   function entrar(auto){$('lBtn').disabled=true;$('lErr').textContent='';
     call({a:'lista'}).then(function(d){$('lBtn').disabled=false;
       if(!d.ok){if(auto){put('sc:k:'+S.d,null);return}$('lErr').textContent=d.error==='clave'?'La clave no es correcta.':'No se pudo entrar ('+d.error+').';return}
-      put('sc:k:'+S.d,S.k);put('sc:por',S.por);S.J=d.jornadas;S.filas=d.filas;
+      put('sc:k:'+S.d,S.k);put('sc:por',S.por);fijarSid();S.J=d.jornadas;S.filas=d.filas;
       if(S.j&&S.J[S.j])iniciar();else pick()
     }).catch(function(){$('lBtn').disabled=false;$('lErr').textContent='Sin conexión. Revisa internet.'})}
+
+  // identificador propio de este celular: cada supervisor recibe solo los avisos de SU código QR
+  function limpiaSup(v){return String(v||'').replace(/[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ ._-]/g,'').trim().slice(0,30)||'Supervisor'}
+  function fijarSid(){var n=limpiaSup(S.por),old=get('sc:sid')||'';
+    if(old.split('~')[0]!==n||!/~[A-Z0-9]{4}$/.test(old)){var a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r='';for(var i=0;i<4;i++)r+=a[Math.floor(Math.random()*a.length)];old=n+'~'+r;put('sc:sid',old)}
+    S.sid=old}
+  function quien(){return 'Supervisor: '+S.por+' · puerta '+String(S.sid||'').split('~')[1]}
 
   // ---- pantalla principal ----
   function detener(){S.gen=(S.gen||0)+1;clearTimeout(S.tokT);clearTimeout(S.evT);clearInterval(S.lsT);clearTimeout(S.inT);S.ultimo=-1;
     var box=$('als');Array.prototype.slice.call(box.children).forEach(function(c){clearInterval(c._i)});box.innerHTML='';
     $('feed').innerHTML='';$('feedEmpty').classList.remove('hidden');$('q').value='';$('cNo').textContent=''}
-  function iniciar(){detener();show('vMain');tab('Qr');var x=S.J[S.j];$('mTit').textContent=x.n;$('mSub').textContent=x.d;$('fPor').textContent='Supervisor: '+S.por;
+  function iniciar(){detener();show('vMain');tab('Qr');var x=S.J[S.j];$('mTit').textContent=x.n;$('mSub').textContent=x.d;$('fPor').textContent=quien();
     contar();render();token();sondear();noInscritos();S.lsT=setInterval(refrescar,20000);
     try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){}}
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.j&&!$('vMain').classList.contains('hidden')){try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){};token()}});
@@ -2551,7 +2559,7 @@ var qrcode = function() {
   // QR que cambia
   function token(){clearTimeout(S.tokT);var g=S.gen;
     call({a:'tok'}).then(function(d){if(g!==S.gen)return;if(!d.ok)throw 0;
-      var link=base()+'registro.html#d='+encodeURIComponent(S.d)+'&j='+S.j+'&t='+d.t;$('qr').innerHTML=svg(link,6);$('qr').style.opacity=1;
+      var link=base()+'registro.html#d='+encodeURIComponent(S.d)+'&j='+S.j+'&s='+encodeURIComponent(S.sid)+'&t='+d.t;$('qr').innerHTML=svg(link,6);$('qr').style.opacity=1;
       $('qrMsg').textContent='Escanea con tu celular para registrar tu ingreso';
       var bar=$('qrBar');bar.style.transition='none';bar.style.width=(d.quedan/30*100)+'%';
       requestAnimationFrame(function(){requestAnimationFrame(function(){bar.style.transition='width '+d.quedan+'s linear';bar.style.width='0%'})});
@@ -2565,12 +2573,12 @@ var qrcode = function() {
         if(S.ultimo>=0&&d.ev.length){tab('Qr');d.ev.forEach(function(e){feed(e);aviso(e)});var ks=d.ev.map(function(e){return tipo(e.res)});sound(ks.indexOf('r')>=0?'r':ks.indexOf('y')>=0?'y':'g');refrescar();if(S.tab==='Int')intentos();noInscritos()}
         S.ultimo=d.ultimo}
       S.evT=setTimeout(sondear,2500)}).catch(function(){if(g===S.gen)S.evT=setTimeout(sondear,4000)})}
-  function tipo(r){return /^Ingreso/.test(r)?'g':r==='Otra jornada'?'r':'y'}
+  function tipo(r){return r==='Ingreso'||r==='Ingreso manual'?'g':r==='Otra jornada'?'r':'y'}
   function feed(e){$('feedEmpty').classList.add('hidden');var li=el('li');li.append(el('span','dot '+tipo(e.res)));
     var t=el('div');t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||e.m)+(e.det?' — '+e.det:'')));li.append(t);
     var f=$('feed');f.insertBefore(li,f.firstChild);while(f.children.length>8)f.removeChild(f.lastChild)}
   function aviso(e){var k=tipo(e.res),box=$('als'),c=el('div','al '+k),x=el('button','x','✕');x.setAttribute('aria-label','Cerrar');
-    var cc=el('div','c');c.append(x,el('div','t',(k==='g'?'✓ PUEDE INGRESAR':k==='r'?'✕ NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'! YA HABÍA INGRESADO':e.res==='Se anotó (no inscrito)'?'📝 SE ANOTÓ · NO INSCRITO/A':'! NO ESTÁ INSCRITO/A')+' · '+e.hora),
+    var cc=el('div','c');c.append(x,el('div','t',(k==='g'?'✓ PUEDE INGRESAR':k==='r'?'✕ NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'! YA HABÍA INGRESADO':e.res==='Se anotó (no inscrito)'?'📝 SE ANOTÓ · NO INSCRITO/A':e.res==='Ingreso quitado'?'↩ INGRESO QUITADO':'! NO ESTÁ INSCRITO/A')+' · '+e.hora),
       el('div','n',e.n||e.m),el('div','d',e.det||''),cc);
     box.insertBefore(c,box.firstChild);while(box.children.length>3){var o=box.lastChild;clearInterval(o._i);box.removeChild(o)}
     var q=ESPERA;function tx(){cc.textContent='Se cierra en '+q+' s · toca ✕ para cerrar'}tx();
@@ -2587,13 +2595,18 @@ var qrcode = function() {
   ['pList','pInt','pOcu','pNo'].forEach(function(p){['input','click','touchstart','scroll'].forEach(function(t){$(p).addEventListener(t,inactivo,{passive:true})})});
 
   // intentos
+  S.iTodos=false;
+  $('iMios').onclick=function(){S.iTodos=false;$('iMios').classList.add('on');$('iTodos').classList.remove('on');intentos()};
+  $('iTodos').onclick=function(){S.iTodos=true;$('iTodos').classList.add('on');$('iMios').classList.remove('on');intentos()};
   function intentos(){call({a:'intentos'}).then(function(d){if(!d.ok)return;var c={g:0,r:0,y:0,n:0};
-      d.ev.forEach(function(e){var k=tipo(e.res);if(e.res==='No inscrito'||e.res==='Se anotó (no inscrito)')c.n++;else c[k]++});
+      var ev=d.ev.filter(function(e){return S.iTodos||e.mio});
+      ev.forEach(function(e){var k=tipo(e.res);if(e.res==='No inscrito'||e.res==='Se anotó (no inscrito)')c.n++;else if(e.res!=='Ingreso quitado')c[k]++});
       var st=$('iStats');st.innerHTML='';[['Ingresos',c.g,'var(--ok)'],['Otra jornada',c.r,'var(--bad)'],['Ya habían ingresado',c.y,'var(--warn)'],['No inscritos',c.n,'var(--warn)']].forEach(function(x){
         var b=el('div');var n=el('b','',x[1]);n.style.color=x[2];b.append(n,el('span','',x[0]));st.append(b)});
-      var ul=$('iList');ul.innerHTML='';$('iEmpty').classList.toggle('hidden',d.ev.length>0);
-      d.ev.slice().reverse().forEach(function(e){var li=el('li');li.append(el('span','dot '+tipo(e.res)));var t=el('div');
-        t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||'(sin nombre)')+' · '+e.m),el('div','',e.det||''));li.append(t);ul.append(li)})
+      var ul=$('iList');ul.innerHTML='';$('iEmpty').classList.toggle('hidden',ev.length>0);
+      ev.slice().reverse().forEach(function(e){var li=el('li');li.append(el('span','dot '+tipo(e.res)));var t=el('div');
+        t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||'(sin nombre)')+' · '+e.m),el('div','',e.det||''),el('small','','Escaneó: '+(e.sup||'—')+(e.mio?' (tú)':'')));
+        t.lastChild.style.color='var(--mut)';li.append(t);ul.append(li)})
     }).catch(function(){})}
 
   // no inscritos que dejaron sus datos

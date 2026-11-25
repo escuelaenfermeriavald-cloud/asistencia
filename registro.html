@@ -53,7 +53,7 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
   function form(pre){box.innerHTML='';var c=el('div','card'),f=el('form');
     var l=el('label','','Tu correo institucional');l.htmlFor='m';
     var i=el('input');i.id='m';i.type='text';i.autocomplete='email';i.inputMode='email';i.autocapitalize='none';i.spellcheck=false;i.setAttribute('autocorrect','off');i.placeholder='n.apellido12@alumnos.santotomas.cl';i.required=true;i.value=pre||'';
-    var hi=el('p','hint','Puedes escribir solo la parte antes de la @ (por ejemplo: n.apellido12).');
+    var hi=el('p','hint','Sirve @alumnos.santotomas.cl o @santotomas.cl. También puedes escribir solo la parte antes de la @ (por ejemplo: n.apellido12).');
     var b=el('button','','Registrar mi ingreso');b.type='submit';
     f.append(l,i,hi,b);c.append(f);box.append(c);
     f.onsubmit=function(ev){ev.preventDefault();var m=i.value.trim();if(!m)return;b.disabled=true;b.textContent='Registrando…';enviar(m)};

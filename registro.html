@@ -35,15 +35,28 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
 .prog ol{list-style:none;padding:0;margin:0}
 .prog li{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .prog li:first-child{border-top:0}
-.prog .h{flex:none;width:52px;font-weight:800;color:var(--pri)}
+.prog .h{flex:none;width:96px;white-space:nowrap;font-size:14px;font-weight:800;color:var(--pri);padding-top:2px}
 .prog .a{font-weight:600}
 .prog .l{color:var(--mut);font-size:14px}
 .tip{background:#e6f1f2;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:12px}
+#bv{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 24px;color:#fff;
+  background:radial-gradient(circle at 30% 20%,#14919b 0%,#0b6b74 55%,#06474d 100%);transition:opacity .6s}
+#bv.fuera{opacity:0;pointer-events:none}
+#bv>*{opacity:0;transform:translateY(14px);animation:sube .8s forwards}
+#bv .hola{font-size:34px;font-weight:800;line-height:1.15;margin:0 0 14px;animation-delay:.2s}
+#bv .que{font-size:21px;line-height:1.35;margin:0 0 16px;animation-delay:1s}
+#bv .que:nth-child(2){animation-delay:.6s}
+#bv .lema{font-size:19px;font-style:italic;margin:0 0 22px;color:#d9f3f5;animation-delay:2s}
+#bv .fac{font-size:14px;letter-spacing:.05em;text-transform:uppercase;opacity:.9;animation-delay:2.8s}
+#bv .pb{position:absolute;left:24px;right:24px;bottom:28px;height:5px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden;opacity:1;transform:none;animation:none}
+#bv .pb i{display:block;height:100%;width:0;background:#fff;animation:llena 6.5s linear forwards}
+@keyframes sube{to{opacity:1;transform:none}}
+@keyframes llena{to{width:100%}}
 </style>
 </head>
 <body>
 <main>
-  <div class="top">Jornadas de Salud Comunitaria UST</div>
+  <div class="top">Jornada de Cierre de Vinculación con el Medio · UST</div>
   <h1 id="tit">Registro de ingreso</h1>
   <p class="sub" id="sub">Cargando…</p>
   <div id="box"></div>
@@ -74,7 +87,7 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
         if(d.error==='usado')return res('warn','✓','Este teléfono ya registró un ingreso',['Cada persona debe escanear el código QR de la entrada con su propio teléfono.']);
         if(d.error==='correo')return res('warn','✉','Correo no válido',['Revisa cómo lo escribiste.'],['Volver a intentar',function(){form(m)}]);
         return res('warn','!','No se pudo registrar',['Intenta nuevamente.'],['Volver a intentar',function(){form(m)}])}
-      if(d.res==='ok'){res('ok','✓','Ingreso registrado',[d.nombre,d.carrera,'Hora: '+d.hora,'Muestra esta pantalla a la persona de la entrada.']);return guardarPrograma(d)}
+      if(d.res==='ok'){res('ok','✓','Ingreso registrado',[d.nombre,d.carrera,'Hora: '+d.hora,'Muestra esta pantalla a la persona de la entrada.']);guardarPrograma(d);window.scrollTo(0,0);return bienvenida(d.nombre)}
       if(d.res==='ya'){res('ok','✓','Ya estabas registrado/a',[d.nombre,'Tu ingreso quedó registrado a las '+d.hora+'.']);return guardarPrograma(d)}
       if(d.res==='otra'){var ls=[d.nombre,'No estás inscrito/a en esta jornada.','Te corresponde:'];
         (d.asignadas||[]).forEach(function(a){ls.push(a.n+' · '+a.d)});
@@ -108,6 +121,14 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
       }).catch(function(){b.disabled=false;b.textContent='Enviar mis datos';err.textContent='Sin conexión. Intenta de nuevo.'})};
     setTimeout(function(){nom.focus()},50)}
   // ---- programa de la jornada ----
+  // bienvenida: solo aparece cuando la persona fue ACEPTADA en la entrada (6,5 segundos) y luego se ve su programa
+  function bienvenida(nombre){var v=document.createElement('div');v.id='bv';v.setAttribute('role','dialog');
+    var hola=el('p','hola','¡Bienvenida y bienvenido!'),quien=el('p','que',String(nombre||'').split(' ')[0]);quien.style.fontWeight='700';quien.style.fontSize='26px';
+    var que=el('p','que');que.innerHTML='a la Jornada de Cierre de<br><b>Vinculación con el Medio</b>';
+    var lema=el('p','lema');lema.innerHTML='“Del aula a la comunidad:<br>un viaje para la salud”';
+    var pb=el('div','pb');pb.append(el('i'));v.append(hola,quien,que,lema,el('p','fac','Facultad de Salud · UST Valdivia'),pb);
+    if(!nombre)quien.remove();document.body.append(v);
+    setTimeout(function(){v.classList.add('fuera');setTimeout(function(){v.remove()},650)},6500)}
   function KEY(j){return 'prog:'+D+':'+j}
   function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
   function lsPut(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}

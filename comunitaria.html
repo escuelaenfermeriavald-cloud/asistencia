@@ -100,11 +100,13 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
 
   <section id="vPick" class="hidden">
     <h1>¿Qué jornada vas a controlar?</h1>
+    <p class="sub" id="pSub">Elige la jornada para comenzar a escanear.</p>
     <div id="pick"></div>
+    <div class="foot"><span id="pPor"></span><button class="sec" id="pSalir">Salir</button></div>
   </section>
 
   <section id="vLogin" class="hidden">
-    <h1 id="lTit">Jornada</h1>
+    <h1 id="lTit">Control de ingreso</h1>
     <p class="sub" id="lSub"></p>
     <form class="card" id="lForm">
       <label for="lClave">Clave</label>
@@ -159,6 +161,7 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
     </div>
 
     <div class="foot"><span id="fPor"></span><span><button class="sec" id="bSon">🔊 Probar sonido</button> <button class="sec" id="bSalir">Salir</button></span></div>
+    <button class="wide sec" id="bCambiar">↩ Cambiar de jornada</button>
   </section>
 </main>
 
@@ -2471,7 +2474,7 @@ var qrcode = function() {
   function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
   function show(v){['vSetup','vPick','vLogin','vMain'].forEach(function(x){$(x).classList.toggle('hidden',x!==v)})}
   function api(){return 'https://script.google.com/macros/s/'+encodeURIComponent(S.d)+'/exec'}
-  function call(p){p.k=S.k;p.j=S.j;return fetch(api()+'?'+new URLSearchParams(p),{redirect:'follow'}).then(function(r){return r.json()})}
+  function call(p){p.k=S.k;p.j=p.j||S.j||'J1';return fetch(api()+'?'+new URLSearchParams(p),{redirect:'follow'}).then(function(r){return r.json()})}
   function base(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
   function svg(text,cell){var q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:cell||4,margin:2,scalable:true})}
   var low=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')};
@@ -2508,50 +2511,60 @@ var qrcode = function() {
         var a=el('a','','Abrir enlace');a.href=link;a.target='_blank';t.append(a);c.append(q,t);out.append(c)})
     }).catch(function(){$('sGo').disabled=false;$('sErr').textContent='No se pudo conectar con la planilla. Revisa el enlace y que la implementación tenga acceso "Cualquier usuario".'})};
 
-  // ---- elegir jornada ----
-  function pick(){show('vPick');var p=$('pick');p.innerHTML='Cargando…';
-    fetch(api()+'?a=info',{redirect:'follow'}).then(function(r){return r.json()}).then(function(d){p.innerHTML='';
-      Object.keys(d.jornadas).forEach(function(j){var b=el('button','wide',d.jornadas[j].n+' · '+d.jornadas[j].d);b.onclick=function(){location.hash='d='+encodeURIComponent(S.d)+'&j='+j;location.reload()};p.append(b)})
-    }).catch(function(){p.textContent='Sin conexión. Intenta de nuevo.'})}
+  // ---- elegir jornada (después de entrar) ----
+  function pick(){detener();S.j='';history.replaceState(null,'','#d='+encodeURIComponent(S.d));show('vPick');$('pPor').textContent='Supervisor: '+S.por;
+    var p=$('pick');p.innerHTML='';
+    Object.keys(S.J).forEach(function(j){var m=S.filas.filter(function(f){return f.js.indexOf(j)>=0}),inn=m.filter(function(f){return f.h}).length;
+      var b=el('button','wide');b.style.textAlign='left';b.style.padding='16px';
+      b.append(el('div','',S.J[j].n),el('div','',S.J[j].d));b.lastChild.style.fontWeight='400';
+      var c=el('div','',inn+' de '+m.length+' ingresaron');c.style.fontWeight='400';c.style.fontSize='14px';c.style.opacity='.85';b.append(c);
+      b.onclick=function(){unlock();S.j=j;history.replaceState(null,'','#d='+encodeURIComponent(S.d)+'&j='+j);iniciar()};p.append(b)})}
+  $('pSalir').onclick=function(){put('sc:k:'+S.d,null);location.replace(location.pathname+'#d='+encodeURIComponent(S.d));location.reload()};
 
-  // ---- login ----
+  // ---- login (una sola vez) ----
   function login(){show('vLogin');$('lPor').value=get('sc:por')||'';
-    fetch(api()+'?a=info',{redirect:'follow'}).then(function(r){return r.json()}).then(function(d){S.J=d.jornadas;var x=d.jornadas[S.j];
-      if(!x){pick();return}$('lTit').textContent=x.n;$('lSub').textContent=x.d+' · '+d.lugar}).catch(function(){$('lSub').textContent='Sin conexión'})
+    fetch(api()+'?a=info',{redirect:'follow'}).then(function(r){return r.json()}).then(function(d){S.J=d.jornadas;
+      var x=d.jornadas[S.j];$('lSub').textContent=(x?x.n+' · '+x.d+' · ':'')+d.lugar}).catch(function(){$('lSub').textContent='Sin conexión'})
     var k=get('sc:k:'+S.d);if(k&&get('sc:por')){S.k=k;S.por=get('sc:por');entrar(true)}}
   $('lForm').onsubmit=function(e){e.preventDefault();unlock();S.k=$('lClave').value.trim();S.por=$('lPor').value.trim();entrar(false)};
   function entrar(auto){$('lBtn').disabled=true;$('lErr').textContent='';
     call({a:'lista'}).then(function(d){$('lBtn').disabled=false;
       if(!d.ok){if(auto){put('sc:k:'+S.d,null);return}$('lErr').textContent=d.error==='clave'?'La clave no es correcta.':'No se pudo entrar ('+d.error+').';return}
-      put('sc:k:'+S.d,S.k);put('sc:por',S.por);S.J=d.jornadas;S.filas=d.filas;iniciar()
+      put('sc:k:'+S.d,S.k);put('sc:por',S.por);S.J=d.jornadas;S.filas=d.filas;
+      if(S.j&&S.J[S.j])iniciar();else pick()
     }).catch(function(){$('lBtn').disabled=false;$('lErr').textContent='Sin conexión. Revisa internet.'})}
 
   // ---- pantalla principal ----
-  function iniciar(){show('vMain');var x=S.J[S.j];$('mTit').textContent=x.n;$('mSub').textContent=x.d;$('fPor').textContent='Supervisor: '+S.por;
+  function detener(){S.gen=(S.gen||0)+1;clearTimeout(S.tokT);clearTimeout(S.evT);clearInterval(S.lsT);clearTimeout(S.inT);S.ultimo=-1;
+    var box=$('als');Array.prototype.slice.call(box.children).forEach(function(c){clearInterval(c._i)});box.innerHTML='';
+    $('feed').innerHTML='';$('feedEmpty').classList.remove('hidden');$('q').value='';$('cNo').textContent=''}
+  function iniciar(){detener();show('vMain');tab('Qr');var x=S.J[S.j];$('mTit').textContent=x.n;$('mSub').textContent=x.d;$('fPor').textContent='Supervisor: '+S.por;
     contar();render();token();sondear();noInscritos();S.lsT=setInterval(refrescar,20000);
-    try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
-    document.addEventListener('visibilitychange',function(){if(!document.hidden){try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){};token()}})}
+    try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){}}
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.j&&!$('vMain').classList.contains('hidden')){try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){};token()}});
+  $('bCambiar').onclick=function(){if(confirm('¿Cambiar de jornada?'))refrescarY(pick)};
+  function refrescarY(fn){call({a:'lista'}).then(function(d){if(d.ok)S.filas=d.filas;fn()}).catch(fn)}
   function mias(){return S.filas.filter(function(f){return f.js.indexOf(S.j)>=0})}
   function contar(){var m=mias();$('cTot').textContent=m.length;$('cIn').textContent=m.filter(function(f){return f.h}).length}
   function refrescar(){call({a:'lista'}).then(function(d){if(d.ok){S.filas=d.filas;contar();if(S.tab==='List')render();if(S.tab==='Ocu')ocupacion()}}).catch(function(){})}
 
   // QR que cambia
-  function token(){clearTimeout(S.tokT);
-    call({a:'tok'}).then(function(d){if(!d.ok)throw 0;
+  function token(){clearTimeout(S.tokT);var g=S.gen;
+    call({a:'tok'}).then(function(d){if(g!==S.gen)return;if(!d.ok)throw 0;
       var link=base()+'registro.html#d='+encodeURIComponent(S.d)+'&j='+S.j+'&t='+d.t;$('qr').innerHTML=svg(link,6);$('qr').style.opacity=1;
       $('qrMsg').textContent='Escanea con tu celular para registrar tu ingreso';
       var bar=$('qrBar');bar.style.transition='none';bar.style.width=(d.quedan/30*100)+'%';
       requestAnimationFrame(function(){requestAnimationFrame(function(){bar.style.transition='width '+d.quedan+'s linear';bar.style.width='0%'})});
       S.tokT=setTimeout(token,(d.quedan+0.5)*1000)
-    }).catch(function(){$('qr').style.opacity=.25;$('qrMsg').textContent='Sin conexión: reintentando…';S.tokT=setTimeout(token,4000)})}
+    }).catch(function(){if(g!==S.gen)return;$('qr').style.opacity=.25;$('qrMsg').textContent='Sin conexión: reintentando…';S.tokT=setTimeout(token,4000)})}
 
   // alertas en vivo (45 segundos)
   var ESPERA=45;
-  function sondear(){clearTimeout(S.evT);
-    call({a:'ev',desde:S.ultimo}).then(function(d){if(d.ok){
+  function sondear(){clearTimeout(S.evT);var g=S.gen;
+    call({a:'ev',desde:S.ultimo}).then(function(d){if(g!==S.gen)return;if(d.ok){
         if(S.ultimo>=0&&d.ev.length){tab('Qr');d.ev.forEach(function(e){feed(e);aviso(e)});var ks=d.ev.map(function(e){return tipo(e.res)});sound(ks.indexOf('r')>=0?'r':ks.indexOf('y')>=0?'y':'g');refrescar();if(S.tab==='Int')intentos();noInscritos()}
         S.ultimo=d.ultimo}
-      S.evT=setTimeout(sondear,2500)}).catch(function(){S.evT=setTimeout(sondear,4000)})}
+      S.evT=setTimeout(sondear,2500)}).catch(function(){if(g===S.gen)S.evT=setTimeout(sondear,4000)})}
   function tipo(r){return /^Ingreso/.test(r)?'g':r==='Otra jornada'?'r':'y'}
   function feed(e){$('feedEmpty').classList.add('hidden');var li=el('li');li.append(el('span','dot '+tipo(e.res)));
     var t=el('div');t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||e.m)+(e.det?' — '+e.det:'')));li.append(t);
@@ -2613,11 +2626,10 @@ var qrcode = function() {
     if(q){var o=S.filas.filter(function(f){return f.js.indexOf(S.j)<0&&match(f,q)});
       if(o.length){ot.append(el('h3','','Inscritos en OTRA jornada (no pueden ingresar)'));var u2=el('ul','list');o.slice(0,30).forEach(function(f){u2.append(fila(f,false))});ot.append(u2)}}}
 
-  $('bSalir').onclick=function(){put('sc:k:'+S.d,null);location.reload()};
+  $('bSalir').onclick=$('pSalir').onclick;
 
   if(!S.d||h.get('setup')!==null)return setup();
   put('sc:d',S.d);
-  if(!S.j)return pick();
   login();
 })();
 </script>

@@ -25,6 +25,8 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
 .res h2{margin:8px 0 6px;font-size:24px}
 .res p{margin:4px 0}
 .ok{background:var(--ok)}.bad{background:var(--bad)}.warn{background:var(--warn)}
+.sel{width:100%;font-size:18px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.card label{margin-top:12px}.card label:first-child{margin-top:0}
 .opt{margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .muted{color:var(--mut);font-size:14px;text-align:center;margin-top:16px}
 </style>
@@ -68,10 +70,33 @@ button.sec{background:#e6eeee;color:var(--ink);margin-top:10px}
         (d.asignadas||[]).forEach(function(a){ls.push(a.n+' · '+a.d)});
         if(d.yaVino)ls.push('Ya registraste tu asistencia en tu jornada a las '+d.yaVino+'.');
         return res('bad','✕','No corresponde esta jornada',ls)}
-      if(d.res==='no')return res('warn','?','No encontramos tu correo',['"'+d.correo+'" no está en la nómina de inscritos.','Revisa que esté bien escrito.'],['Volver a intentar',function(){form(m)}]);
+      if(d.res==='no'){res('warn','!','No estás inscrito/a',['"'+d.correo+'" no está en la nómina de esta jornada.','Si escribiste mal tu correo, corrígelo. Si no estás en la lista, deja tus datos.'],['Corregir mi correo',function(){form(m)}]);
+        var b2=el('button','','No estoy en la lista: anotar mis datos');b2.style.marginTop='10px';b2.style.width='100%';b2.onclick=function(){formNo(d.correo)};box.append(b2);return}
       if(d.res==='elegir'){box.innerHTML='';var c=el('div','card');c.append(el('label','','Este correo está asociado a más de una persona. ¿Quién eres?'));
         d.opciones.forEach(function(o){var b=el('button','opt',o.n);b.onclick=function(){c.querySelectorAll('button').forEach(function(x){x.disabled=true});enviar(m,o.f)};c.append(b)});box.append(c);return}
     }).catch(function(){res('warn','!','Sin conexión',['Revisa tu internet e intenta nuevamente.'],['Volver a intentar',function(){form(m)}])})}
+  function rutOk(r){var s=String(r||'').toUpperCase().replace(/[^0-9K]/g,'');if(s.length<8||s.length>9)return false;var c=s.slice(0,-1),dv=s.slice(-1),sum=0,mul=2;
+    for(var i=c.length-1;i>=0;i--){sum+=Number(c[i])*mul;mul=mul===7?2:mul+1}var x=11-sum%11;return (x===11?'0':x===10?'K':String(x))===dv}
+  function formNo(correo){box.innerHTML='';var c=el('div','card'),f=el('form');var err=el('p','hint');err.style.color='#c62828';err.style.fontWeight='600';
+    function campo(id,txt,ph,v){var l=el('label','',txt);l.htmlFor=id;var i=el('input');i.id=id;i.placeholder=ph||'';i.value=v||'';i.required=true;f.append(l,i);return i}
+    f.append(el('p','hint','Completa tus datos. Quedarán registrados para la organización de la jornada.'));
+    var nom=campo('fn','Nombres','Ej: María José'),a1=campo('fa1','Apellido paterno'),a2=campo('fa2','Apellido materno'),rut=campo('fr','RUT','12345678-9'),mail=campo('fm','Correo',' ',correo);
+    rut.inputMode='text';rut.autocapitalize='characters';mail.inputMode='email';mail.autocapitalize='none';
+    var lc=el('label','','Carrera');lc.htmlFor='fc';var sc=el('select','sel');sc.id='fc';sc.required=true;
+    ['','Enfermería','Kinesiología','Terapia Ocupacional','Tecnología Médica','Otra'].forEach(function(o){var op=el('option','',o||'Elige tu carrera');op.value=o;sc.append(op)});
+    var otra=el('input');otra.placeholder='Escribe tu carrera';otra.style.display='none';otra.style.marginTop='8px';
+    sc.onchange=function(){otra.style.display=sc.value==='Otra'?'block':'none';otra.required=sc.value==='Otra'};
+    f.append(lc,sc,otra);var b=el('button','','Enviar mis datos');b.type='submit';b.style.marginTop='16px';f.append(err,b);c.append(f);box.append(c);
+    f.onsubmit=function(ev){ev.preventDefault();err.textContent='';
+      if(!rutOk(rut.value)){err.textContent='El RUT no es válido. Revisa el número y el dígito verificador.';rut.focus();return}
+      var car=sc.value==='Otra'?otra.value.trim():sc.value;if(!car){err.textContent='Elige tu carrera.';return}
+      b.disabled=true;b.textContent='Enviando…';
+      call({a:'noins',j:J,pase:PASE,nom:nom.value,ap1:a1.value,ap2:a2.value,rut:rut.value,m:mail.value,car:car}).then(function(d){
+        if(d.ok)return res('warn','✓','Tus datos quedaron registrados',[d.nombre,'No estás en la nómina de esta jornada.','Acércate a la persona encargada de la entrada.']);
+        b.disabled=false;b.textContent='Enviar mis datos';
+        err.textContent=d.error==='rut'?'El RUT no es válido.':d.error==='correo'?'Revisa tu correo.':d.error==='faltan'?'Completa todos los datos.':d.error==='qr'?'El código QR expiró: vuelve a escanear el QR de la entrada.':d.error==='usado'?'Desde este teléfono ya se enviaron datos.':'No se pudo enviar. Intenta de nuevo.'
+      }).catch(function(){b.disabled=false;b.textContent='Enviar mis datos';err.textContent='Sin conexión. Intenta de nuevo.'})};
+    setTimeout(function(){nom.focus()},50)}
   if(!D||!J||!T){document.getElementById('sub').textContent='';return res('warn','!','Enlace incompleto',['Escanea el código QR de la entrada.'])}
   call({a:'abre',j:J,t:T}).then(function(d){
     if(!d.ok){document.getElementById('sub').textContent='';return expirado()}

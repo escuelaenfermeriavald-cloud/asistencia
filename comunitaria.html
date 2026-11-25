@@ -58,7 +58,7 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
 .links a{color:var(--pri);font-weight:700;overflow-wrap:anywhere}
 .foot{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:14px;margin-top:16px}
 .hidden{display:none!important}
-.tabs button{padding:11px 6px;font-size:14px}
+.tabs{flex-wrap:wrap}.tabs button{padding:11px 6px;font-size:14px;flex:1 1 30%}
 .al{border-radius:14px;padding:14px 16px;color:#fff;margin:10px 0 4px;position:relative}
 .al.g{background:var(--ok)}.al.y{background:var(--warn)}.al.r{background:var(--bad);animation:fl .6s 6 alternate}
 @keyframes fl{from{background:var(--bad)}to{background:#7f0000}}
@@ -120,8 +120,9 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
     <h1 id="mTit">Jornada</h1>
     <p class="sub" id="mSub"></p>
     <div class="count"><b id="cIn">0</b> de <span id="cTot">0</span> inscritos ingresaron</div>
+    <button id="sonBan" class="wide" style="background:#b26a00">🔊 Toca aquí para activar el sonido de las alarmas</button>
     <div id="als"></div>
-    <div class="tabs"><button id="tQr" class="on">QR</button><button id="tList">Lista</button><button id="tInt">Intentos</button><button id="tOcu">Ocupación</button></div>
+    <div class="tabs"><button id="tQr" class="on">QR</button><button id="tList">Lista</button><button id="tInt">Intentos</button><button id="tOcu">Ocupación</button><button id="tNo">No inscritos <span id="cNo"></span></button></div>
 
     <div id="pQr">
       <div class="card" id="qrwrap">
@@ -152,7 +153,12 @@ h3{font-size:15px;margin:14px 0 4px;color:var(--bad)}
       <div class="card"><b>Por carrera</b><div id="oCar"></div></div>
     </div>
 
-    <div class="foot"><span id="fPor"></span><button class="sec" id="bSalir">Salir</button></div>
+    <div id="pNo" class="hidden">
+      <div class="card"><b>Personas que no estaban en la nómina y dejaron sus datos</b>
+        <ul class="list" id="noList"></ul><p class="sub" id="noEmpty" style="margin:6px 0 0">Nadie se ha anotado todavía.</p></div>
+    </div>
+
+    <div class="foot"><span id="fPor"></span><span><button class="sec" id="bSon">🔊 Probar sonido</button> <button class="sec" id="bSalir">Salir</button></span></div>
   </section>
 </main>
 
@@ -2470,17 +2476,24 @@ var qrcode = function() {
   function svg(text,cell){var q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:cell||4,margin:2,scalable:true})}
   var low=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')};
 
-  // ---- sonido y vibración ----
-  var AC=null;function unlock(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
-  function beep(f,dur,at){if(!AC)return;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.value=.25;o.connect(g);g.connect(AC.destination);var t=AC.currentTime+(at||0);o.start(t);o.stop(t+dur)}
-  function sirena(seg){if(!AC)return;var t=AC.currentTime,o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain();
-    o.type='sawtooth';o2.type='square';g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.08);g.gain.setValueAtTime(.35,t+seg-.2);g.gain.exponentialRampToValueAtTime(.0001,t+seg);
-    for(var k=0;k<seg/1.2;k++){var s0=t+k*1.2;o.frequency.setValueAtTime(650,s0);o.frequency.linearRampToValueAtTime(1500,s0+.6);o.frequency.linearRampToValueAtTime(650,s0+1.2);
-      o2.frequency.setValueAtTime(652,s0);o2.frequency.linearRampToValueAtTime(1504,s0+.6);o2.frequency.linearRampToValueAtTime(652,s0+1.2)}
-    var g2=AC.createGain();g2.gain.value=.25;o.connect(g);o2.connect(g2);g2.connect(g);g.connect(AC.destination);o.start(t);o2.start(t);o.stop(t+seg);o2.stop(t+seg)}
-  function sound(kind){try{if(kind==='g'){beep(880,.12);beep(1320,.15,.14)}else if(kind==='r'){sirena(5)}else{beep(600,.2);beep(600,.2,.3)}}catch(e){}
+  // ---- sonido (audio normal: suena aunque el iPhone esté en silencio) y vibración ----
+  function wav(seg,fn){var sr=22050,n=Math.floor(sr*seg),buf=new ArrayBuffer(44+n*2),v=new DataView(buf),p=0;
+    function w(sx){for(var i=0;i<sx.length;i++)v.setUint8(p++,sx.charCodeAt(i))}function u32(x){v.setUint32(p,x,true);p+=4}function u16(x){v.setUint16(p,x,true);p+=2}
+    w('RIFF');u32(36+n*2);w('WAVEfmt ');u32(16);u16(1);u16(1);u32(sr);u32(sr*2);u16(2);u16(16);w('data');u32(n*2);
+    var ph=0;for(var i=0;i<n;i++){var t=i/sr,r=fn(t);ph+=2*Math.PI*r[0]/sr;var x=r[1]*(0.6*Math.sin(ph)+0.25*Math.sin(2*ph)+0.15*Math.sin(3*ph));
+      var env=Math.min(1,t/0.02,(seg-t)/0.05);v.setInt16(p,Math.max(-1,Math.min(1,x*env))*32000,true);p+=2}
+    return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}))}
+  var SON={
+    r:wav(5,function(t){var c=t%1.2,f=c<0.6?650+850*(c/0.6):1500-850*((c-0.6)/0.6);return[f,1]}),
+    g:wav(0.4,function(t){return[t<0.18?880:1320,t>0.16&&t<0.2?0:0.8]}),
+    y:wav(0.7,function(t){return[600,(t<0.25||t>0.4&&t<0.65)?0.9:0]})};
+  var AU={};Object.keys(SON).forEach(function(k){var a=new Audio(SON[k]);a.preload='auto';AU[k]=a});
+  S.sonOk=false;
+  function unlock(){if(S.sonOk)return;var n=0;Object.keys(AU).forEach(function(k){var a=AU[k];a.muted=true;
+    var pr=a.play();if(pr&&pr.then)pr.then(function(){a.pause();a.currentTime=0;a.muted=false;if(++n===3){S.sonOk=true;var b=$('sonBan');if(b)b.classList.add('hidden')}}).catch(function(){a.muted=false});else{a.pause();a.muted=false}})}
+  function sound(kind){try{var a=AU[kind]||AU.y;a.pause();a.currentTime=0;a.muted=false;a.volume=1;var pr=a.play();if(pr&&pr.catch)pr.catch(function(){var b=$('sonBan');if(b)b.classList.remove('hidden')})}catch(e){}
     try{navigator.vibrate&&navigator.vibrate(kind==='r'?[600,200,600,200,600,200,600,200,600]:kind==='g'?[120]:[200,100,200])}catch(e){}}
-  document.addEventListener('click',unlock,{once:false});
+  ['click','touchend'].forEach(function(t){document.addEventListener(t,unlock,{passive:true})});
 
   // ---- preparación de enlaces (solo la organizadora) ----
   function setup(){show('vSetup');if(S.d)$('sUrl').value='https://script.google.com/macros/s/'+S.d+'/exec'}
@@ -2515,7 +2528,7 @@ var qrcode = function() {
 
   // ---- pantalla principal ----
   function iniciar(){show('vMain');var x=S.J[S.j];$('mTit').textContent=x.n;$('mSub').textContent=x.d;$('fPor').textContent='Supervisor: '+S.por;
-    contar();render();token();sondear();S.lsT=setInterval(refrescar,20000);
+    contar();render();token();sondear();noInscritos();S.lsT=setInterval(refrescar,20000);
     try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
     document.addEventListener('visibilitychange',function(){if(!document.hidden){try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){})}catch(e){};token()}})}
   function mias(){return S.filas.filter(function(f){return f.js.indexOf(S.j)>=0})}
@@ -2536,7 +2549,7 @@ var qrcode = function() {
   var ESPERA=45;
   function sondear(){clearTimeout(S.evT);
     call({a:'ev',desde:S.ultimo}).then(function(d){if(d.ok){
-        if(S.ultimo>=0&&d.ev.length){tab('Qr');d.ev.forEach(function(e){feed(e);aviso(e)});var ks=d.ev.map(function(e){return tipo(e.res)});sound(ks.indexOf('r')>=0?'r':ks.indexOf('y')>=0?'y':'g');refrescar();if(S.tab==='Int')intentos()}
+        if(S.ultimo>=0&&d.ev.length){tab('Qr');d.ev.forEach(function(e){feed(e);aviso(e)});var ks=d.ev.map(function(e){return tipo(e.res)});sound(ks.indexOf('r')>=0?'r':ks.indexOf('y')>=0?'y':'g');refrescar();if(S.tab==='Int')intentos();noInscritos()}
         S.ultimo=d.ultimo}
       S.evT=setTimeout(sondear,2500)}).catch(function(){S.evT=setTimeout(sondear,4000)})}
   function tipo(r){return /^Ingreso/.test(r)?'g':r==='Otra jornada'?'r':'y'}
@@ -2544,7 +2557,7 @@ var qrcode = function() {
     var t=el('div');t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||e.m)+(e.det?' — '+e.det:'')));li.append(t);
     var f=$('feed');f.insertBefore(li,f.firstChild);while(f.children.length>8)f.removeChild(f.lastChild)}
   function aviso(e){var k=tipo(e.res),box=$('als'),c=el('div','al '+k),x=el('button','x','✕');x.setAttribute('aria-label','Cerrar');
-    var cc=el('div','c');c.append(x,el('div','t',(k==='g'?'✓ PUEDE INGRESAR':k==='r'?'✕ NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'! YA HABÍA INGRESADO':'? CORREO NO INSCRITO')+' · '+e.hora),
+    var cc=el('div','c');c.append(x,el('div','t',(k==='g'?'✓ PUEDE INGRESAR':k==='r'?'✕ NO CORRESPONDE ESTA JORNADA':e.res==='Ya ingresó'?'! YA HABÍA INGRESADO':e.res==='Se anotó (no inscrito)'?'📝 SE ANOTÓ · NO INSCRITO/A':'! NO ESTÁ INSCRITO/A')+' · '+e.hora),
       el('div','n',e.n||e.m),el('div','d',e.det||''),cc);
     box.insertBefore(c,box.firstChild);while(box.children.length>3){var o=box.lastChild;clearInterval(o._i);box.removeChild(o)}
     var q=ESPERA;function tx(){cc.textContent='Se cierra en '+q+' s · toca ✕ para cerrar'}tx();
@@ -2552,23 +2565,31 @@ var qrcode = function() {
     c._i=setInterval(function(){q--;if(q<=0)return fin();tx()},1000);x.onclick=fin}
 
   // pestañas
-  var TABS=['Qr','List','Int','Ocu'];S.tab='Qr';
+  var TABS=['Qr','List','Int','Ocu','No'];S.tab='Qr';
   function tab(n){S.tab=n;clearTimeout(S.inT);TABS.forEach(function(x){$('t'+x).classList.toggle('on',x===n);$('p'+x).classList.toggle('hidden',x!==n)});
-    if(n!=='List')$('q').value='';if(n==='List')render();if(n==='Int')intentos();if(n==='Ocu')ocupacion();if(n!=='Qr')inactivo()}
+    if(n!=='List')$('q').value='';if(n==='List')render();if(n==='Int')intentos();if(n==='Ocu')ocupacion();if(n==='No')noInscritos();if(n!=='Qr')inactivo()}
   function verQr(){tab('Qr')}
   TABS.forEach(function(x){$('t'+x).onclick=function(){tab(x)}});
   function inactivo(){clearTimeout(S.inT);S.inT=setTimeout(verQr,45000)}
-  ['pList','pInt','pOcu'].forEach(function(p){['input','click','touchstart','scroll'].forEach(function(t){$(p).addEventListener(t,inactivo,{passive:true})})});
+  ['pList','pInt','pOcu','pNo'].forEach(function(p){['input','click','touchstart','scroll'].forEach(function(t){$(p).addEventListener(t,inactivo,{passive:true})})});
 
   // intentos
   function intentos(){call({a:'intentos'}).then(function(d){if(!d.ok)return;var c={g:0,r:0,y:0,n:0};
-      d.ev.forEach(function(e){var k=tipo(e.res);if(e.res==='No inscrito')c.n++;else c[k]++});
+      d.ev.forEach(function(e){var k=tipo(e.res);if(e.res==='No inscrito'||e.res==='Se anotó (no inscrito)')c.n++;else c[k]++});
       var st=$('iStats');st.innerHTML='';[['Ingresos',c.g,'var(--ok)'],['Otra jornada',c.r,'var(--bad)'],['Ya habían ingresado',c.y,'var(--warn)'],['No inscritos',c.n,'var(--warn)']].forEach(function(x){
         var b=el('div');var n=el('b','',x[1]);n.style.color=x[2];b.append(n,el('span','',x[0]));st.append(b)});
       var ul=$('iList');ul.innerHTML='';$('iEmpty').classList.toggle('hidden',d.ev.length>0);
       d.ev.slice().reverse().forEach(function(e){var li=el('li');li.append(el('span','dot '+tipo(e.res)));var t=el('div');
         t.append(el('b','',e.hora+' · '+e.res),el('div','',(e.n||'(sin nombre)')+' · '+e.m),el('div','',e.det||''));li.append(t);ul.append(li)})
     }).catch(function(){})}
+
+  // no inscritos que dejaron sus datos
+  function noInscritos(){call({a:'noinscritos'}).then(function(d){if(!d.ok)return;$('cNo').textContent=d.filas.length?'('+d.filas.length+')':'';
+      var ul=$('noList');ul.innerHTML='';$('noEmpty').classList.toggle('hidden',d.filas.length>0);
+      d.filas.slice().reverse().forEach(function(f){var li=el('li'),w=el('div','who');w.append(el('b','',f.n),el('small','',f.hora+' · RUT '+f.rut+' · '+f.car+' · '+f.m));li.append(w);ul.append(li)})
+    }).catch(function(){})}
+  $('sonBan').onclick=function(){unlock();sound('g')};
+  $('bSon').onclick=function(){unlock();setTimeout(function(){sound('r')},150)};
 
   // ocupación
   function ocupacion(){var m=mias(),inn=m.filter(function(f){return f.h}).length,p=m.length?Math.round(inn*100/m.length):0;
